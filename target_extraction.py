@@ -116,7 +116,7 @@ def mean_shift_trace_and_crop(file_path, first_file_name):
 	ltx, lty, lrx, lry = get_first_trace_rect(first_file_name)
 	first_image = cv2.imread(first_file_name, -1)
 	simple_crop(ltx, lty, lrx, lry)
-	target_extract()
+	# target_extract()
 
 	pass
 
