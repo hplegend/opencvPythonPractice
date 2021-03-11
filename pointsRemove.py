@@ -2,8 +2,8 @@
 # coding: utf-8
 
 
-in_file = open('./images/reconstructed.ply', 'r')
-out_file = open('./images/remove.ply', 'w')
+in_file = open('./images/cv_points_xyz.txt', 'r')
+out_file = open('./images/remove.txt', 'w')
 
 inline = in_file.readline()
 while '' != inline:

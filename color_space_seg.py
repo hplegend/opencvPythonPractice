@@ -8,52 +8,29 @@ import os
 from matplotlib import pyplot as plt
 
 
-def hsv_hist_extraction(hsv_hist, image_path):
+def hsv_hist_extraction(hsv_hist, image_path, file_name):
 	image_data = cv2.imread(image_path, -1)
 	img_height, img_width, _ = image_data.shape
-	hsv_roi_test = cv2.cvtColor(image_data, cv2.COLOR_BGR2HSV)
+	y_cr_cb = cv2.cvtColor(image_data, cv2.COLOR_BGR2Lab)  # 转换至YCrCb空y间
+	(y, cr, cb) = cv2.split(y_cr_cb)  # 拆分出Y,Cr,Cb值
+	cr1 = cv2.GaussianBlur(cr, (3, 3), 0)
 
-	# 反向投影是基于概率的
-	dst = cv2.calcBackProject([hsv_roi_test], [0], hsv_hist, [0, 180], 1)
-	blur_ret = cv2.blur(dst, (3, 3))
-	median_ret = cv2.medianBlur(blur_ret, 3)
+	# 这里是亮度，因此0-255 都不会影响
+	_, skin = cv2.threshold(cr1, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)  # Ostu处理
+	# isu.show_image_with_fix_windows(skin, False)
 
-	# isu.show_image_with_fix_windows(dst, False)
-	# isu.show_image_with_fix_windows(median_ret, False)
+	# 反色： 黑变白，白变黑
+	mask = 255 - skin
+	# isu.show_image_with_fix_windows(mask, False)
 
-	# 开始用反向投影作为模板抠图
-	empty_new_image = np.zeros((img_height, img_width, 3), dtype='uint8') + 255
-	# mask_inv = cv2.bitwise_not(maskImage)
-	extract_mask_image = cv2.bitwise_and(image_data, empty_new_image, mask=median_ret)
+	koutuRet = cv2.bitwise_and(image_data, image_data, mask=skin)
+	# isu.show_image_with_fix_windows(koutuRet, True)
 
-	# 剔除小轮廓
-	gray = cv2.cvtColor(extract_mask_image, cv2.COLOR_BGR2GRAY)
-	ret, thresh = cv2.threshold(gray, 10, 255, cv2.THRESH_BINARY_INV)
+	cv2.imwrite('./images/final/' + file_name, koutuRet)
 
-	# isu.show_image_with_fix_windows(thresh, False)
-
-	_, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-
-	reserve_contours = []
-
-	for ele_contour in contours:
-		area = cv2.contourArea(ele_contour)
-		if area > 0 and area < 50:
-			continue
-		if area > img_width * img_height * 0.8:
-			continue
-		reserve_contours.append(ele_contour)
-
-	reserve_contour_image = np.zeros((img_height, img_width, 1), dtype='uint8') + 0
-	cv2.drawContours(reserve_contour_image, reserve_contours, -1, (255), thickness=-1)
-	# isu.show_image_with_fix_windows(reserve_contour_image, True)
-
-	# 提取最终的结果
-	final_new_image = np.zeros((img_height, img_width, 3), dtype='uint8') + 255
-	# mask_inv = cv2.bitwise_not(maskImage)
-	final_extract_image = cv2.bitwise_and(image_data, final_new_image, mask=reserve_contour_image)
-
-	return final_extract_image
+	# 这里要特别强调一个参数： cv2.RETR_EXTERNAL，意思是找一个外接轮廓，对于多目标而言，这个参数是非常好的。
+	# 如果使用cv2.RETR_TREE，可能就会存在轮廓嵌套轮廓，而导致对于有空洞的目标不容易提取
+	# contours, hierarchy = cv2.findContours(skin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
 	pass
 
@@ -112,14 +89,12 @@ pass
 
 files = os.listdir('./images/crop')
 
-# 利用
 raw_image = cv2.imread('./images/crop/' + files[0], -1)
 hsv_hist = cacl_hsv_hist(raw_image)
 
 for file in files:
 	full_path = './images/crop/' + file
-	ret_image = hsv_hist_extraction(hsv_hist, full_path)
-	cv2.imwrite('./images/cropFilter/' + file, ret_image)
+	hsv_hist_extraction(hsv_hist, full_path, file)
 
 # reference
 # https://blog.csdn.net/wsp_1138886114/article/details/80660014
